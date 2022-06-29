@@ -4,6 +4,7 @@
   "description": "Node.js chat app with socket.io",
   "main": "server.js",
   "scripts": {
+    "start": "cross-env NODE_ENV=dev nodemon server.js",
     "dev": "cross-env NODE_ENV=dev nodemon server.js",
     "prod": "cross-env NODE_ENV=prod nodemon server.js"
   },
