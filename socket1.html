@@ -194,17 +194,20 @@
             })
 
             // Add room button when new connection establish
-            socket.on( "new-connection", ( user, socketId ) => {
+            socket.on( "new-connection", ( userId, socketId ) => {
+                if ( userId === user_id && socketId !== socket_id ) {
+                    socket.close();
+                }
                 if ( room_list.indexOf( socketId ) == -1 ) {
                     // create new btn
                     let newBtn = document.createElement( "button" );
                     newBtn.className = "userBtn";
                     newBtn.id = socketId;
                     newBtn.value = socketId;
-                    newBtn.innerText = user;
+                    newBtn.innerText = userId.split( "_" )[1];
                     newBtn.onclick = function () {
                         socket.emit( "join", socketId );
-                        room_status.innerText = user;
+                        room_status.innerText = userId.split( "_" )[1];
                         rmAllMsgFromBox();
                     }
                     roomList.firstElementChild.appendChild( newBtn );

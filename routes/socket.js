@@ -42,6 +42,7 @@ module.exports = ( app ) => {
         //     io.sockets.to( msg.room_id ).emit( "msg", msg );
         // })
         let room_id = socket.id;
+        let user_id = socket.decoded_token ? socket.decoded_token.uid : `guest_${new Date().getTime()}`;
         let user_name = socket.decoded_token ? socket.decoded_token.user_name : `guest_${new Date().getTime()}`;
         onlineCount++;
 
@@ -49,7 +50,7 @@ module.exports = ( app ) => {
         io.emit( 'onlineCount', onlineCount );
 
         // Notify to all clients the socket id is online
-        io.emit( "new-connection", user_name, socket.id );
+        io.emit( "new-connection", user_id, socket.id );
 
         // Notify current db total room list
         socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] );
