@@ -41,11 +41,12 @@ class Records {
     get( room_id, callback ) {
         Message.count().then( ( count ) => {
             if ( count >= MAX ) {
-                Message.find( { "room_id": room_id } ).sort( { "time": 1 } ).limit( MAX ).then( ( res ) => {
+                Message.find( { "room_id": room_id } ).sort( { "create_time": -1 } ).limit( MAX ).then( ( res ) => {
+                    res = res.sort( ( a, b ) => { return a > b ? 1 : -1 } );
                     callback( this.cleanWord( res ) );
                 });
             } else {
-                Message.find( { "room_id": room_id } ).sort( { "time": 1 } ).then( ( res ) => {
+                Message.find( { "room_id": room_id } ).sort( { "create_time": 1 } ).then( ( res ) => {
                     callback( this.cleanWord( res ) );
                 });
             }

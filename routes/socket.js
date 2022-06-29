@@ -26,11 +26,13 @@ module.exports = ( app ) => {
     });
 
     const roomMgr = new RoomManager( ( rooms ) => {
+        totalRooms = roomMgr.get();
         io.emit( 'refresh-rooms', rooms );
     })
 
     let onlineCount = 0;
     let totalUsers = {};
+    let totalRooms = roomMgr.get();
     io.on( 'connection', ( socket ) => {
         console.log( `Socket ${socket.id} connected.` );
         console.log( socket.decoded_token );
@@ -50,7 +52,6 @@ module.exports = ( app ) => {
         io.emit( "new-connection", user_name, socket.id );
 
         // Notify current db total room list
-        let totalRooms = roomMgr.get();
         socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] );
         // RoomMgr.getByPlatformId( socket.decoded_token.platform_id, ( res ) => {
         //     for ( let room of res ) {
@@ -115,6 +116,13 @@ module.exports = ( app ) => {
             room_id = room;
             // Notify sender join room success
             socket.emit( 'onJoinRoom', room );
+            for ( let r of totalRooms[ socket.decoded_token.platform_id ] ) {
+                if ( room_id == `${r.platform_id}_${r.room_id}` ) {
+                    records.setMax( r.history_limit );
+                    socket.emit( "maxRecord", r.history_limit );
+                }
+
+            }
             // Load message record for current (new) room
             records.get( room, ( msg ) => {
                 socket.emit( "chatRecord", msg );

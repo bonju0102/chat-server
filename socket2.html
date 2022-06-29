@@ -234,7 +234,7 @@
             socket.on( "chatRecord", ( msgs ) => {
                 for ( var i = 0; i < msgs.length; i++ ) {
                     ( () => {
-                        addMsgToBox( msgs[ i ]);
+                        addMsgToBox( msgs[ i ] );
                     })();
                 }
             })
@@ -332,7 +332,15 @@
                         rmAllMsgFromBox();
                     }
                     roomList.firstElementChild.appendChild( newBtn );
+
+                    if ( rid == room_id ) {
+                        console.log( room_id)
+                        max_record = r.history_limit;
+                        // Remove all content
+                        rmAllMsgFromBox();
+                    }
                 }
+                socket.emit( 'join', room_id );
             })
 
             // Get notify for total room list when connected
@@ -444,20 +452,21 @@
                     }
                     content.appendChild( msgBox );
 
-                    if ( content.children.length > max_record ) {
-                        rmMsgFromBox( 1 );
-                    }
+                    // 超過長度刪除第一個訊息
+                    // if ( content.children.length > max_record ) {
+                    //     rmMsgFromBox( 1 );
+                    // }
                 }
             }
 
             // Remove first msg record
-            function rmMsgFromBox() {
+            async function rmMsgFromBox() {
                 let childs = content.children;
                 childs[0].remove()
             }
 
             // Remove all msg
-            async function rmAllMsgFromBox() {
+            function rmAllMsgFromBox() {
                 while ( content.hasChildNodes() ) {
                     content.removeChild( content.firstChild );
                 }
