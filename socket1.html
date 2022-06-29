@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<style>
+    html, body {
+        padding: 0;
+        margin: 0;
+    }
+
+    #container {
+        top: 50px;
+        width: 500px;
+        margin: 0 auto;
+        display: block;
+        position: relative;
+    }
+
+    #status-box {
+        text-align: right;
+        font-size: 1em;
+    }
+
+    #chat-room {
+        display: flex;
+        flex-direction: row;
+    }
+
+    #content {
+        width: 75%;
+        height: 350px;
+        border: 1px solid darkolivegreen;
+        border-radius: 5px;
+        overflow: auto;
+    }
+
+    #room-list {
+        width: 25%;
+        height: 350px;
+        border: 1px solid darkolivegreen;
+        border-radius: 5px;
+        margin-right: 2px;
+        overflow: auto;
+        position: center;
+    }
+
+    .vertical-center {
+        margin: 0 auto;
+        position: relative;
+        top: 3%;
+    }
+
+    .roomBtn {
+        width: 80%;
+        height: 35px;
+        font-size: 15px;
+        text-align: center;
+        padding: 0px;
+        margin: 10%;
+    }
+
+    .userBtn {
+        width: 80%;
+        height: 35px;
+        font-size: 15px;
+        text-align: center;
+        padding: 0px;
+        margin: 10%;
+    }
+
+    #send-box {
+        width: 100%;
+        text-align: center;
+        margin-top: 1%;
+    }
+
+    #send-box input {
+        display: inline-block;
+    }
+
+    #send-box input.error {
+        border: 1px solid red;
+    }
+
+    input[name="uid"] {
+        width: 15%;
+    }
+
+    input[name="msg"] {
+        width: 70%;
+    }
+
+    .uid {
+        width: 15%;
+        display: inline-block;
+        padding: 5px 0 5px 5px;
+    }
+
+    .msg {
+        width: 100%;
+        display: inline-block;
+        padding: 5px 0 5px 0;
+    }
+
+    .msg > span {
+        width: 25%;
+        display: inline-block;
+    }
+
+    .msg > span::before {
+        color: darkred;
+        content: " { ";
+    }
+
+    .msg > span::after {
+        color: darkred;
+        content: " } ";
+    }
+</style>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Socket</title>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js" integrity="sha384-7EyYLQZgWBi67fBtVxw60/OWl1kjsfrPFcaU0pp0nAh+i8FD068QogUvg85Ewy1k" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<div id="container">
+    <div id="status-box">Server: <span id="status">-</span> Room: <span id="room" style="color:red">-</span> / <span id="onlineCount">0</span> online.</div>
+    <div id="chat-room">
+        <div id="room-list">
+            <div class="vertical-center">
+<!--                <button class="roomBtn" value="lobby">lobby</button>-->
+<!--                <button class="roomBtn" value="room A">room A</button>-->
+<!--                <button class="roomBtn" value="room B">room B</button>-->
+<!--                <button class="roomBtn" value="room C">room C</button>-->
+            </div>
+        </div>
+        <div id="content"></div>
+    </div>
+    <div id="send-box">
+        <form id="send-form">
+            <input type="text" name="uid" id="uid" placeholder="Name">
+            <input type="text" name="msg" id="msg" placeholder="Say something?">
+            <input type="submit" value="send">
+        </form>
+    </div>
+</div>
+
+<script>
+    ( async () => {
+        // const token = await getToken( 'user001', "62b19bf4f70f548116e42e46" );
+
+        let socket = io( 'http://localhost:9999', {
+            auth: {
+                token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2MmIxOWJmNGY3MGY1NDgxMTZlNDJlNDZfdXNlcjAwMSIsInVzZXJfbmFtZSI6InVzZXIwMDEiLCJwbGF0Zm9ybV9pZCI6IjYyYjE5YmY0ZjcwZjU0ODExNmU0MmU0NiIsImlhdCI6MTY1NjQ2ODA3NiwiZXhwIjoxNjU2NTU0NDc2fQ.2aKiH1Z7YOvuprgcElPDXxfLFkuh7-ZQtd20IH6PbLo`
+            },
+        });
+        document.addEventListener( "DOMContentLoaded", () => {
+
+            let socket_id = "";
+            let room_id = "";
+            let room_list = [];
+            var max_record;
+            var status = document.getElementById( "status" );
+            var room_status = document.getElementById( "room" );
+            var onlineCount = document.getElementById( "onlineCount" );
+            var sendForm = document.getElementById( "send-form" );
+            var content = document.getElementById( "content" );
+            var roomList = document.getElementById( "room-list" );
+            var nameInputBox = document.getElementById( "uid" );
+            var msgInputBox = document.getElementById( "msg" );
+            let decoded_token = parseJwt( socket.auth.token )
+            var user_id = decoded_token ? decoded_token.uid : getCookie( "uid" );
+            var user_name = decoded_token ? decoded_token.user_name : getCookie( "user_name" );
+
+            if ( user_name ) {
+                nameInputBox.value = user_name;
+            }
+
+            // Initial room button click action
+            for ( let i = 0; i < roomList.firstElementChild.childElementCount; i++ ) {
+                room_list.push( roomList.firstElementChild.children[i].value )
+                roomList.firstElementChild.children[i].onclick = function () {
+                    socket.emit( "join", roomList.firstElementChild.children[i].value );
+                    room_status.innerText = roomList.firstElementChild.children[i].innerText;
+                    rmAllMsgFromBox();
+                }
+            }
+
+            // Got kick from server
+            socket.on( 'kick', ( uid ) => {
+                if ( uid == decoded_token.platform_id || uid == user_id ) {
+                    socket.close();
+                }
+            })
+
+            // Add room button when new connection establish
+            socket.on( "new-connection", ( user, socketId ) => {
+                if ( room_list.indexOf( socketId ) == -1 ) {
+                    // create new btn
+                    let newBtn = document.createElement( "button" );
+                    newBtn.className = "userBtn";
+                    newBtn.id = socketId;
+                    newBtn.value = socketId;
+                    newBtn.innerText = user;
+                    newBtn.onclick = function () {
+                        socket.emit( "join", socketId );
+                        room_status.innerText = user;
+                        rmAllMsgFromBox();
+                    }
+                    roomList.firstElementChild.appendChild( newBtn );
+                    room_list.push( socketId );
+                }
+            })
+
+            // Get notify when someone offline ( remove from room_list & delete roomBtn )
+            socket.on( "offline", ( socket_id ) => {
+                let idx = room_list.indexOf( socket_id );
+                if ( idx != -1 ) {
+                    room_list = room_list.splice( idx, 1 );
+                    document.getElementById( socket_id ).remove()
+                }
+            })
+
+            // Get notify when join room success
+            socket.on( "onJoinRoom", ( msg ) => {
+                room_id = msg;
+            })
+
+            // socket.on( "room-brodcast", ( msg ) => {
+            //
+            // })
+
+            // Load chat record to current msgBox
+            socket.on( "chatRecord", ( msgs ) => {
+                for ( var i = 0; i < msgs.length; i++ ) {
+                    ( () => {
+                        addMsgToBox( msgs[ i ]);
+                    })();
+                }
+            })
+
+            // Set msg maxRecord
+            socket.on( "maxRecord", ( amount ) => {
+                max_record = amount;
+            })
+
+            // Get notify when someone send msg
+            socket.on( "msg", addMsgToBox );
+
+            // Send msg event
+            sendForm.addEventListener( "submit", ( e ) => {
+                e.preventDefault();
+
+                var ok = true;
+                var formData = {};
+                var formChild = sendForm.children;
+
+                for ( var i = 0; i < sendForm.childElementCount; i++ ) {
+                    var child = formChild[i];
+                    if ( child.name !== "" ) {
+                        var val = child.value;
+                        if ( val === "" || !val ) {
+                            ok = false;
+                            child.classList.add( "error" );
+                        } else {
+                            child.classList.remove( "error" );
+                            formData[ child.name ] = val;
+                        }
+                    }
+                }
+                formData.uid = user_id;
+                // record current socket_id & room_id
+                formData.socket_id = socket_id;
+                formData.room_id = room_id;
+                if ( ok ) {
+                    socket.emit( "send" , formData );
+                    setCookie( "user_name", nameInputBox.value );
+                    msgInputBox.value = "";
+                }
+            })
+
+            // Websocket connect
+            socket.on( "connect", () => {
+                status.innerText = "Connected.";
+                room_status.innerText = `${user_name}`;
+                socket_id = socket.id
+                room_id = socket.id
+                setCookie( "socket_id", socket_id, 10 );
+                setCookie( "uid", decoded_token.uid, 10 );
+            });
+
+            // Websocket disconnect
+            socket.on( "disconnect", () => {
+                status.innerText = "Disconnected.";
+                // Remove msgBox content
+                while ( content.children.length > 0 ) {
+                    content.children[0].remove();
+                }
+                // Remove Btn
+                while ( roomList.firstElementChild.children.length > 0 ) {
+                    roomList.firstElementChild.children[0].remove();
+                }
+            });
+
+            // online websocket number
+            socket.on( "onlineCount", ( amount ) => {
+                onlineCount.innerText = amount;
+            });
+
+            // Get notify when platform rooms are modified
+            socket.on( 'refresh-rooms', ( rooms ) => {
+                // Get current platform room list
+                let room = rooms[ decoded_token.platform_id ];
+
+                // Remove all roomBtn
+                let tmpBtnList = document.getElementsByClassName( "roomBtn" );
+                while( tmpBtnList.length > 0 ) {
+                    tmpBtnList[0].remove();
+                }
+
+                // Add new roomBtn
+                for ( let r of room ) {
+                    const rid = `${r.platform_id}_${r.room_id}`
+                    let newBtn = document.createElement( "button" );
+                    newBtn.className = "roomBtn";
+                    newBtn.id = rid;
+                    newBtn.value = rid;
+                    newBtn.innerText = r.name;
+                    newBtn.onclick = function () {
+                        socket.emit( "join", rid );
+                        room_status.innerText = r.name;
+                        rmAllMsgFromBox();
+                    }
+                    roomList.firstElementChild.appendChild( newBtn );
+                }
+            })
+
+            // Get notify for total room list when connected
+            socket.on( "totalRooms", ( rooms ) => {
+                // Remove all roomBtn
+                let tmpBtnList = document.getElementsByClassName( "roomBtn" );
+                while( tmpBtnList.length > 0 ) {
+                    tmpBtnList[0].remove();
+                }
+
+                for ( let room of rooms ) {
+                    const rid = `${room.platform_id}_${room.room_id}`;
+                    // Add new room if not exist
+                    if ( room_list.indexOf( rid ) == -1 ) {
+                        room_list.push( rid );
+                    }
+
+                    // create new btn
+                    let newBtn = document.createElement( "button" );
+                    newBtn.className = "roomBtn";
+                    newBtn.id = rid;
+                    newBtn.value = rid;
+                    newBtn.innerText = room.name;
+                    newBtn.onclick = function () {
+                        socket.emit( "join", rid );
+                        room_status.innerText = room.name;
+                        rmAllMsgFromBox();
+                    }
+                    roomList.firstElementChild.appendChild( newBtn );
+                }
+            })
+
+            // Get notify for total user list when connected
+            socket.on( "totalUsers", ( users ) => {
+                // current roomBtn value list
+                let tmp_btn = []
+                for ( let btn of document.getElementsByClassName( "userBtn" ) ) {
+                    tmp_btn.push( btn.value );
+                }
+
+                for ( let sid of Object.keys(users) ) {
+                    // Add new room if not exist
+                    if ( room_list.indexOf( sid ) == -1 ) {
+                        room_list.push( sid );
+                    }
+
+                    // Add new roomBtn if not exist
+                    if ( tmp_btn.indexOf( sid ) == -1 ) {
+                        // create new btn
+                        let newBtn = document.createElement( "button" );
+                        newBtn.className = "userBtn";
+                        newBtn.id = sid;
+                        newBtn.value = sid;
+                        newBtn.innerText = sid == socket_id ? user_name : users[sid]
+                        newBtn.onclick = function () {
+                            socket.emit( "join", sid );
+                            room_status.innerText = sid == socket_id ? user_name : users[sid];
+                            rmAllMsgFromBox();
+                        }
+                        roomList.firstElementChild.appendChild( newBtn );
+                    }
+                }
+            })
+
+            // Set cookie
+            function setCookie( cname, cvalue, exps ) {
+                let day = new Date();
+                day.setTime( day.getTime() + ( exps * 1000 ));
+                let expires = `expires=${day.toUTCString()}`;
+                document.cookie = `${cname}=${cvalue};${expires};path=/`
+            }
+
+            // Get cookie
+            function getCookie( cname ) {
+                let name = cname + "=";
+                let ca = document.cookie.split(';');
+                for ( var i = 0; i < ca.length; i++ ) {
+                    let c = ca[ i ];
+                    while ( c.charAt(0) == ' ' ) {
+                        c = c.substring(1);
+                    }
+                    if ( c.indexOf( name ) == 0 ) {
+                        return c.substring( name.length, c.length );
+                    }
+                }
+                return "";
+            }
+
+            // Add msg to msgBox
+            function addMsgToBox( data ) {
+                if ( data.room_id == room_id ) {
+                    var msgBox = document.createElement( "div" );
+                    msgBox.className = "msg";
+                    var uidBox = document.createElement( "span" );
+                    uidBox.className = "uid";
+                    var uid = document.createTextNode( data.uid.split("_")[1] );
+                    var msg = document.createTextNode( data.msg );
+
+                    uidBox.appendChild( uid );
+                    // Show self msg at right
+                    if ( data.uid == user_id ) {
+                        msgBox.style = "text-align: right;padding: 5px 0 5px 0;"
+                        uidBox.style = "padding: 5px 5px 5px 0;"
+                        msgBox.appendChild( msg );
+                        msgBox.appendChild( uidBox );
+                    } else {
+                        msgBox.appendChild( uidBox );
+                        msgBox.appendChild( msg );
+                    }
+                    content.appendChild( msgBox );
+
+                    if ( content.children.length > max_record ) {
+                        rmMsgFromBox( 1 );
+                    }
+                }
+            }
+
+            // Remove first msg record
+            function rmMsgFromBox() {
+                let childs = content.children;
+                childs[0].remove()
+            }
+
+            // Remove all msg
+            async function rmAllMsgFromBox() {
+                while ( content.hasChildNodes() ) {
+                    content.removeChild( content.firstChild );
+                }
+            }
+
+        });
+
+        // Get token for websocket
+        async function getToken( uid, platform_id) {
+            try {
+                const result = await axios.post( 'http://localhost:8888/auth/getToken', {
+                    uid: uid,
+                    platform_id: platform_id
+                }).then( ( res ) => { return res.data.data } );
+                return result
+            } catch ( err ) {
+                return ""
+                console.log( err );
+            }
+        }
+
+        function parseJwt (token) {
+            var base64Url = token.split('.')[1];
+            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+            }).join(''));
+
+            return JSON.parse(jsonPayload);
+        };
+    })()
+</script>
+</body>
+</html>
