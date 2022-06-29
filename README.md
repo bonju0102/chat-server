@@ -8,5 +8,8 @@ $ npm run install
 
 # How to start server
 ```shell
+# Check package.json for detail
 $ npm run start
+$ npm run dev
+$ npm run prod
 ```
