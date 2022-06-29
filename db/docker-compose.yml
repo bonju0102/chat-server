@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  mongo:
+    image: mongo
+    container_name: 'chat_mongo'
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: a168168168
+    volumes:
+      - './mongo-data:/data/db'
+    ports:
+      - '27017:27017'
+
+  redis:
+    image: 'redis:6.2.6'
+    container_name: chat_redis
+    restart: always
+    environment:
+      REDIS_PASSWORD: 'a168168168'
+    command:
+      - /bin/sh
+      - -c
+      - redis-server --requirepass $${REDIS_PASSWORD}
+    ports:
+      - '6379:6379'
+    volumes:
+      - './redis-data:/data'
+      - './redis.conf:/usr/local/etc/redis/redis.conf'  # 啟動後手動執行 CONFIG notify-keyspace-events "Exg" 開啟 TLL 失效通知
