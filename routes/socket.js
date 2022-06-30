@@ -4,8 +4,8 @@ module.exports = ( app ) => {
     const { createServer } = require( "http" );
     const { Server } = require( "socket.io" );
     const httpServer = createServer( app );
-    const Records = require( "../models/record" );
-    const RoomManager = require( "../models/room" );
+    const Records = require( "../managers/recordManager" );
+    const RoomManager = require( "../managers/roomManager" );
 
     //跨域 "*" => 全通
     const io = new Server( httpServer, {
@@ -53,7 +53,7 @@ module.exports = ( app ) => {
         io.emit( "new-connection", user_id, socket.id );
 
         // Notify current db total room list
-        socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] );
+        socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] ? totalRooms[ socket.decoded_token.platform_id ] : [] );
         // RoomMgr.getByPlatformId( socket.decoded_token.platform_id, ( res ) => {
         //     for ( let room of res ) {
         //         let tmp_id = `${room.platform_id}_${room.room_id}`;
@@ -117,7 +117,7 @@ module.exports = ( app ) => {
             room_id = room;
             // Notify sender join room success
             socket.emit( 'onJoinRoom', room );
-            for ( let r of totalRooms[ socket.decoded_token.platform_id ] ) {
+            for ( let r of totalRooms[ socket.decoded_token.platform_id ] ? totalRooms[ socket.decoded_token.platform_id ] : [] ) {
                 if ( room_id == `${r.platform_id}_${r.room_id}` ) {
                     records.setMax( r.history_limit );
                     socket.emit( "maxRecord", r.history_limit );

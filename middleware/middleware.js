@@ -1,6 +1,6 @@
 const ERR = require( "../utils/errCode" );
 const utils = require( "../utils/utils" );
-const PlatformMgr = require( "../models/platform")
+const PlatformMgr = require( "../managers/platformManager")
 
 module.exports = ( socket, next ) => {
     const token = socket.handshake.auth.token;

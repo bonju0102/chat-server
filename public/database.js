@@ -1,23 +1,19 @@
 const config = require( `../config/${process.env.NODE_ENV}_config.js` );
-const mongoose = require( "mongoose" );
-const mongo = mongoose.createConnection( config.mongoURI, config.mongoConfig );
+const moment = require( "moment" );
 const { Sequelize } = require( "sequelize" );
 const mysql = new Sequelize( config.mysqlConfig );
 
-mongo.on( "error", console.error.bind( console, "connection error: "));
-mongo.on( "open", () => { console.log( "mongo connected!" ) });
-
-mysql.defineModel = function ( name, attributes ) {
+Sequelize.defineModel = function ( model_name, attributes ) {
     let attrs = {};
     for ( let key in attributes ) {
         let value = attributes[ key ];
         if ( typeof value === "object" && value[ "type" ] ) {
-            value.allowNull = value.allowNull || true;
+            value.allowNull = value.allowNull || false;
             attrs[ key ] = value;
         } else {
             attrs[ key ] = {
                 type: value,
-                allowNull: true
+                allowNull: false
             };
         }
     }
@@ -30,6 +26,7 @@ mysql.defineModel = function ( name, attributes ) {
 
     attrs.create_time = {
         type: Sequelize.DATE,
+        defaultValue: Sequelize.NOW,
         allowNull: true,
         comment: "建立時間",
         get() {
@@ -45,7 +42,17 @@ mysql.defineModel = function ( name, attributes ) {
             return moment(this.getDataValue("update_time")).format('YYYY-MM-DD HH:mm:ss');
         }
     };
+
+    return mysql.define( model_name, attrs, {
+        tableName: model_name,
+        timestamps: false,
+        hooks: {
+            beforeUpdate( instance, options) {
+                instance.dataValues.update_time = moment( Date.now() ).format( 'YYYY-MM-DD HH:mm:ss' )
+            }
+        }
+    })
 }
 
 
-module.exports = mongo;
+module.exports = { Sequelize, mysql };

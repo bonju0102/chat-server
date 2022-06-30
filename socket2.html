@@ -124,7 +124,7 @@
 </head>
 <body>
 <div id="container">
-    <div id="status-box">Server: <span id="status">-</span> Room: <span id="room" style="color:red">-</span> / <span id="onlineCount">0</span> online.</div>
+    <div id="status-box">Server: <span id="status">-</span> RoomManager: <span id="room" style="color:red">-</span> / <span id="onlineCount">0</span> online.</div>
     <div id="chat-room">
         <div id="room-list">
             <div class="vertical-center">
@@ -151,7 +151,7 @@
 
         let socket = io( 'http://localhost:9999', {
             auth: {
-                token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiI2MmJhNzU0ODVlNWQ4ZDZkYWUyYmVjZDRfdXNlcjAwMiIsInVzZXJfbmFtZSI6InVzZXIwMDIiLCJwbGF0Zm9ybV9pZCI6IjYyYmE3NTQ4NWU1ZDhkNmRhZTJiZWNkNCIsImlhdCI6MTY1NjQ2ODA4MSwiZXhwIjoxNjU2NTU0NDgxfQ.pORuPg0LcfdOX4SCRBr5OAaMYu4mTEyPl_cJjk4Hl4s`
+                token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyX3VzZXIwMDIiLCJ1c2VyX25hbWUiOiJ1c2VyMDAyIiwicGxhdGZvcm1faWQiOiIyIiwiaWF0IjoxNjU2NDk4MTMyLCJleHAiOjE2NTY1ODQ1MzJ9.z0klt3qeNIH7RliYrH3ZUxMp7cvGJT7948l_VcJ4OGQ`
             },
         });
         document.addEventListener( "DOMContentLoaded", () => {

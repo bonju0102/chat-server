@@ -1,12 +1,3 @@
-exports.mongoURI = "mongodb://localhost:27017/chat";
-
-exports.mongoConfig = {
-    "user": "root",
-    "pass": "a168168168",
-    "authSource": "admin",
-    "autoIndex": false,
-}
-
 exports.mysqlConfig = {
     "username": "root",
     "password": "c7Qz4BLKEoq@hE?T",
@@ -29,4 +20,8 @@ exports.PORT = 8888;
 
 exports.SOCKET_PORT = 9999;
 
+exports.TZ = 'Asia/Taipei';
+
 exports.SECRET = "44ba1e74c787c24a8366c3778ebe717a3a707545b2dbfc0c365429ad201d122f";
+
+exports.backendUrl = `http://localhost:${this.PORT}/`;

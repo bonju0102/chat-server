@@ -1,26 +1,23 @@
-// const { EventEmitter } = require( "events" );
-const mongo = require( "../public/database" );
-const schema = require( "../schema/Message" );
-const Message = mongo.model( "Message", schema );
+const models = require( "../public/modelPool" );
+const Message = models.Message;
 const WordFilter = require( "bad-words-chinese" );
 const wordFilter = new WordFilter();
 const { pubRedis, subRedis } = require( "../public/redis" );
 
 let MAX = 20;
 
-// class Records extends EventEmitter {
 class Records {
     constructor( callback ) {
+        Message.sync();
         this.onSubscribe();
         this.callback = callback || function ( msg ) { console.log( msg ) }
     }
 
     push( msg ) {
-        const m = new Message( msg );
-        m.save();
-
-        // this.emit( "new_message", this.cleanWord( new Array( msg ) )[0] );
-        pubRedis.publish( "new_message", JSON.stringify( this.cleanWord( new Array( msg ) )[0] ) );
+        Message.create( msg )
+            .then( res => {
+                pubRedis.publish( "new_message", JSON.stringify( this.cleanWord( new Array( msg ) )[0] ) )
+            })
 
         // Message.count().then( ( count ) => {
         //    if ( count >= MAX ) {
@@ -39,16 +36,29 @@ class Records {
     }
 
     get( room_id, callback ) {
-        Message.count().then( ( count ) => {
+        Message.count().then( count => {
             if ( count >= MAX ) {
-                Message.find( { "room_id": room_id } ).sort( { "create_time": -1 } ).limit( MAX ).then( ( res ) => {
+                Message.findAll({
+                    where: {
+                        room_id: room_id
+                    },
+                    order: [
+                       [ 'id', 'DESC' ]
+                    ],
+                    limit: MAX,
+                }).then( res => {
                     res = res.sort( ( a, b ) => { return a > b ? 1 : -1 } );
                     callback( this.cleanWord( res ) );
                 });
             } else {
-                Message.find( { "room_id": room_id } ).sort( { "create_time": 1 } ).then( ( res ) => {
-                    callback( this.cleanWord( res ) );
-                });
+                Message.findAll({
+                    where: {
+                        room_id: room_id
+                    },
+                    order: [
+                        [ 'id', 'ASC' ]
+                    ],
+                }).then( res => callback( this.cleanWord( res ) ) );
             }
         })
     }

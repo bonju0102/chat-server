@@ -1,12 +1,12 @@
-const db = require( "../public/database" );
-const schema = require( "../schema/Room" );
-const {subRedis, pubRedis} = require("../public/redis");
-const Room = db.model( "Room", schema );
+const models = require( "../public/modelPool" );
+const Room = models.Room;
+const { pubRedis, subRedis } = require( "../public/redis" );
 
 let instance;
 
 class RoomManager {
     constructor( callback ) {
+        Room.sync();
         this.rooms = {};
         this.totalRooms = {};
         this.load();
@@ -27,49 +27,45 @@ class RoomManager {
             this.callback( this.totalRooms );
         });
     }
+
     async push( room_info ) {
-        const r = new Room( room_info );
-        let room = await r.save();
-        pubRedis.publish( "new_room", `${room._id}` );
-        return room;
+        return await Room.create( room_info ).then( res => {
+            pubRedis.publish( "new_room", `${res.dataValues.id}` );
+            return res
+        })
     }
 
     get( platform_id ) {
         return platform_id ? this.totalRooms[ platform_id ] ? this.totalRooms[ platform_id ] : {} : this.totalRooms
     }
 
-    getOriginal( callback ) {
-        Room.find().sort( { "platform_id": 1, "room_id": 1 } ).then( ( res ) => {
-            callback( res );
-        });
+    async getOriginal( callback ) {
+        return await Room.findAll( { raw: true } ).then( res => callback ? callback( res ) : res )
     }
 
     getByPlatformId( platform_id, callback ) {
-        Room.find( { "platform_id": platform_id } ).then( ( res ) => {
-            callback( res );
-        });
+        return Room.findAll( { where: { "platform_id": platform_id } } )
+            .then( res => callback ? callback( res ) : res )
     }
 
     update( room_info, callback ) {
-        Room.findOneAndUpdate( { "_id": room_info.id }, room_info, { new: true }, ( err, res ) => {
-            if ( err ) {
+        Room.findByPk( room_info.id )
+            .then( room => room.update( room_info ) )
+            .then( res => callback( res ) )
+            .catch( ( err ) => {
                 console.error( err );
-                callback( err, {} );
-            }
-            pubRedis.publish( "update_room", `${res._id}` );
-            callback( err, res );
-        })
+                callback( err )
+            });
     }
 
     remove( id, callback ) {
-        Room.findOneAndDelete( { "_id": id }, { rawResult: true }, ( err, res ) => {
-            if ( err ) {
+        Room.findByPk( id )
+            .then( room => room.destroy() )
+            .then( res => callback( res ) )
+            .catch( ( err ) => {
                 console.error( err );
-                callback( err, {} );
-            }
-            pubRedis.publish( "delete_room", `${res.value._id.toString()}` );
-            callback( err, res );
-        })
+                callback( err )
+            });
     }
 
     onSubscribe() {
@@ -98,7 +94,6 @@ class RoomManager {
             }
         });
     }
-
 }
 
 module.exports = RoomManager;

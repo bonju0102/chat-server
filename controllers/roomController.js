@@ -3,12 +3,11 @@ const ERR = require( "../utils/errCode" );
 const roomService = require( "../service/roomService" );
 
 exports.getRoom = async ( req, res ) => {
-    await roomService.getRoom( ( result ) => {
-        res.json({
-            "code": 200,
-            "data": result
-        })
-    });
+    const result = await roomService.getRoom();
+    res.json({
+        "code": 200,
+        "data": result
+    })
 }
 
 exports.createRoom = async ( req, res ) => {
@@ -25,7 +24,7 @@ exports.createRoom = async ( req, res ) => {
 }
 
 exports.updateRoom = async ( req, res ) => {
-    await roomService.updateRoom( req.body, ( error, result ) => {
+    await roomService.updateRoom( req.body, ( result ) => {
         res.json({
             "code": 200,
             "data": result
@@ -34,7 +33,7 @@ exports.updateRoom = async ( req, res ) => {
 }
 
 exports.deleteRoom = async ( req, res ) => {
-    await roomService.deleteRoom( req.params.id, ( error, result ) => {
+    await roomService.deleteRoom( req.params.id, ( result ) => {
         res.json({
             "code": 200,
             "data": result

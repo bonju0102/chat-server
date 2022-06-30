@@ -1,4 +1,3 @@
-const roomController = require("../controllers/roomController");
 module.exports = ( app ) => {
     const path = require( "path" );
     const router = require( "express" ).Router();

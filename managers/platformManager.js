@@ -1,12 +1,12 @@
-const db = require( "../public/database" );
-const schema = require( "../schema/Platform" );
-const Platform = db.model( "Platform", schema );
+const models = require( "../public/modelPool" );
+const Platform = models.Platform;
 const { pubRedis, subRedis } = require( "../public/redis" );
 
 let instance;
 
 class PlatformManager {
     constructor() {
+        Platform.sync();
         this.platforms = {};
         this.load();
         this.onSubscribe();
@@ -15,54 +15,48 @@ class PlatformManager {
     load() {
         this.getOriginal( ( platforms ) => {
             for ( let p of platforms ) {
-                this.platforms[ p._id.toString() ] = p
+                this.platforms[ p.dataValues.id.toString() ] = p
             }
         });
     }
 
     async push( platform_info ) {
-        const p = new Platform( platform_info );
-        let platform = await p.save();
-        pubRedis.publish( "new_platform", `${p._id}` );
-        return platform;
+        return await Platform.create( platform_info ).then( res => {
+            pubRedis.publish( "new_platform", `${res.dataValues.id}` );
+            return res
+        } );
     }
 
     get() {
         return this.platforms
     }
 
-    getOriginal( callback ) {
-        Platform.find().sort( { "_id": 1 } ).then( ( res ) => {
-            callback( res );
-        });
+    async getOriginal( callback ) {
+        return await Platform.findAll().then( res => callback ? callback( res ) : res );
     }
 
     getById( id, callback ) {
-        Platform.findById( id ).then( ( res ) => {
-            callback( res );
-        });
+        return Platform.findByPk( id ).then(res => callback( res ) );
     }
 
     update( platform_info, callback ) {
-        Platform.findOneAndUpdate( { "_id": platform_info.id }, platform_info, { new: true }, ( err, res ) => {
-            if ( err ) {
+        Platform.findByPk( platform_info.id )
+            .then( platform => platform.update( platform_info ) )
+            .then( res => callback( res ) )
+            .catch( ( err ) => {
                 console.error( err );
-                callback( err, {} );
-            }
-            pubRedis.publish( "update_platform", `${res._id}` );
-            callback( err, res );
-        })
+                callback( err )
+            });
     }
 
     remove( platform_id, callback ) {
-        Platform.findOneAndDelete( { "_id": platform_id }, { rawResult: true }, ( err, res ) => {
-            if ( err ) {
+        Platform.findByPk( platform_id )
+            .then( platform => platform.destroy() )
+            .then( res => callback( res ) )
+            .catch( ( err ) => {
                 console.error( err );
-                callback( err, {} );
-            }
-            pubRedis.publish( "delete_platform", `${res.value._id}` );
-            callback( err, res );
-        })
+                callback( err )
+            });
     }
 
     onSubscribe() {
@@ -91,7 +85,6 @@ class PlatformManager {
             }
         });
     }
-
 }
 
 module.exports = ( () => {
@@ -99,4 +92,4 @@ module.exports = ( () => {
         instance = new PlatformManager();
     }
     return instance;
-})()
+})();

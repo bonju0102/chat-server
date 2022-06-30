@@ -1,10 +1,13 @@
-exports.mongoURI = "mongodb://localhost:27017/chat";
-
-exports.mongoConfig = {
-    "user": "root",
-    "pass": "a168168168",
-    "authSource": "admin",
-    "autoIndex": false,
+exports.mysqlConfig = {
+    "username": "root",
+    "password": "c7Qz4BLKEoq@hE?T",
+    "database": "chat",
+    "host": "localhost",
+    "port": "3306",
+    "dialect": "mysql",
+    "timezone":"+08:00", //設置 UTC+8
+    "logQueryParameters": true, // 完整SQL語句Log
+    logging: console.log
 }
 
 exports.redisConfig = {
@@ -17,4 +20,8 @@ exports.PORT = 6666;
 
 exports.SOCKET_PORT = 7777;
 
+exports.TZ = 'Asia/Taipei';
+
 exports.SECRET = "44ba1e74c787c24a8366c3778ebe717a3a707545b2dbfc0c365429ad201d122f";
+
+exports.backendUrl = `http://localhost:${this.PORT}/`;
