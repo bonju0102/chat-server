@@ -2,15 +2,15 @@ const models = require( "../public/modelPool" );
 const Room = models.Room;
 const { pubRedis, subRedis } = require( "../public/redis" );
 
-let instance;
+// let instance;
 
 class RoomManager {
     constructor( callback ) {
         Room.sync();
-        this.rooms = {};
         this.totalRooms = {};
         this.load();
         this.onSubscribe();
+        // 載入/刷新房間後 callback
         this.callback = callback || function () {}
     }
 
@@ -21,7 +21,6 @@ class RoomManager {
                 if ( !this.totalRooms[ r.platform_id ] ) {
                     this.totalRooms[r.platform_id] = []
                 }
-                // this.totalRooms[ r.platform_id ][ `${r.platform_id}_${r.room_id}` ] = r.name
                 this.totalRooms[ r.platform_id ].push( r );
             }
             this.callback( this.totalRooms );
@@ -69,27 +68,15 @@ class RoomManager {
     }
 
     onSubscribe() {
-        // 新增
-        subRedis.subscribe( "new_room", ( err, msg ) => {
-            if ( err ) {
-                console.log( err.message );
-            }
-        });
-        // 更新
-        subRedis.subscribe( "update_room", ( err, msg ) => {
-            if ( err ) {
-                console.log( err.message );
-            }
-        });
-        // 刪除
-        subRedis.subscribe( "delete_room", ( err, msg ) => {
+        // 訂閱
+        subRedis.subscribe( "room", ( err, msg ) => {
             if ( err ) {
                 console.log( err.message );
             }
         });
         // 刷新
         subRedis.on( "message", ( channel, message ) => {
-            if ( [ "new_room", "update_room", "delete_room" ].indexOf( channel ) != -1 ) {
+            if ( channel === "room" ) {
                 this.load();
             }
         });

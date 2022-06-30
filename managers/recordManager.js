@@ -4,12 +4,14 @@ const WordFilter = require( "bad-words-chinese" );
 const wordFilter = new WordFilter();
 const { pubRedis, subRedis } = require( "../public/redis" );
 
+// let instance;
 let MAX = 20;
 
 class Records {
     constructor( callback ) {
         Message.sync();
         this.onSubscribe();
+        // 載入訊息後 callback
         this.callback = callback || function ( msg ) { console.log( msg ) }
     }
 
@@ -18,21 +20,6 @@ class Records {
             .then( res => {
                 pubRedis.publish( "new_message", JSON.stringify( this.cleanWord( new Array( msg ) )[0] ) )
             })
-
-        // Message.count().then( ( count ) => {
-        //    if ( count >= MAX ) {
-        //        Message.find().sort( { "time": 1 } ).limit( 1 ).then( ( res ) => {
-        //            Message.findByIdAndDelete( res[0]._id, ( err, deleted ) => {
-        //                if ( err ) {
-        //                    console.log( `DB Error: ${err}` );
-        //                }
-        //                if ( !deleted ) {
-        //                    console.log(deleted);
-        //                }
-        //            });
-        //        })
-        //    }
-        // });
     }
 
     get( room_id, callback ) {
@@ -87,7 +74,7 @@ class Records {
                 console.log( err.message );
             }
             subRedis.on( "message", ( channel, message ) => {
-                if ( channel == "new_message" ) {
+                if ( channel === "new_message" ) {
                     const msg = JSON.parse( message );
                     this.callback( msg );
                 }

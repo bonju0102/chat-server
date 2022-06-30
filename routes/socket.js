@@ -4,7 +4,7 @@ module.exports = ( app ) => {
     const { createServer } = require( "http" );
     const { Server } = require( "socket.io" );
     const httpServer = createServer( app );
-    const Records = require( "../managers/recordManager" );
+    const RecordsManager = require( "../managers/recordManager" );
     const RoomManager = require( "../managers/roomManager" );
 
     //跨域 "*" => 全通
@@ -20,7 +20,7 @@ module.exports = ( app ) => {
     io.use( middleware );
 
     // Get notify after msg saved
-    const records = new Records( ( msg ) => {
+    const recordsMgr = new RecordsManager( ( msg ) => {
         // Send msg to specific room to all clients
         io.sockets.to( msg.room_id ).emit( "msg", msg );
     });
@@ -54,19 +54,6 @@ module.exports = ( app ) => {
 
         // Notify current db total room list
         socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] ? totalRooms[ socket.decoded_token.platform_id ] : [] );
-        // RoomMgr.getByPlatformId( socket.decoded_token.platform_id, ( res ) => {
-        //     for ( let room of res ) {
-        //         let tmp_id = `${room.platform_id}_${room.room_id}`;
-        //         if ( Object.keys( totalRooms ).indexOf( tmp_id ) == -1 ) {
-        //             totalRooms[ tmp_id ] = room.name;
-        //         }
-        //     }
-        //     socket.emit( "totalRooms", totalRooms );
-        //     console.log( '---- totalRooms ----')
-        //     console.log( totalRooms );
-        //     console.log( '---- RoomMgr.get() ----')
-        //     console.log( RoomMgr.get() );
-        // })
 
         // Notify current socket id total room list
         totalUsers[ socket.id ] = user_name;
@@ -81,10 +68,10 @@ module.exports = ( app ) => {
         });
 
         // Notify sender the maxRecord for msg
-        socket.emit( "maxRecord", records.getMax() );
+        socket.emit( "maxRecord", recordsMgr.getMax() );
 
         // Load message record for current room_id
-        records.get( room_id, ( msg ) => {
+        recordsMgr.get( room_id, ( msg ) => {
             // Notify sender current room chat record
             socket.to( msg.room_id ).emit( "chatRecord", msg );
         })
@@ -104,7 +91,7 @@ module.exports = ( app ) => {
         socket.on( 'send', ( msg ) => {
             if ( Object.keys( msg ).length < 2 ) return;
             console.log( msg );
-            records.push( msg );
+            recordsMgr.push( msg );
         })
 
         // Get notify when client want to join specific room
@@ -119,13 +106,13 @@ module.exports = ( app ) => {
             socket.emit( 'onJoinRoom', room );
             for ( let r of totalRooms[ socket.decoded_token.platform_id ] ? totalRooms[ socket.decoded_token.platform_id ] : [] ) {
                 if ( room_id == `${r.platform_id}_${r.room_id}` ) {
-                    records.setMax( r.history_limit );
+                    recordsMgr.setMax( r.history_limit );
                     socket.emit( "maxRecord", r.history_limit );
                 }
 
             }
             // Load message record for current (new) room
-            records.get( room, ( msg ) => {
+            recordsMgr.get( room, ( msg ) => {
                 socket.emit( "chatRecord", msg );
             })
             // io.sockets.to( room ).emit( 'room-brodcast', `${socket.id} has join in ${room}`);

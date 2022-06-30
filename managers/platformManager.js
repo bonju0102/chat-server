@@ -60,27 +60,15 @@ class PlatformManager {
     }
 
     onSubscribe() {
-        // 新增
-        subRedis.subscribe( "new_platform", ( err, msg ) => {
-            if ( err ) {
-                console.log( err.message );
-            }
-        });
-        // 更新
-        subRedis.subscribe( "update_platform", ( err, msg ) => {
-            if ( err ) {
-                console.log( err.message );
-            }
-        });
-        // 刪除
-        subRedis.subscribe( "delete_platform", ( err, msg ) => {
+        // 訂閱
+        subRedis.subscribe( "platform", ( err, msg ) => {
             if ( err ) {
                 console.log( err.message );
             }
         });
         // 刷新
         subRedis.on( "message", ( channel, message ) => {
-            if ( [ "new_platform", "update_platform", "delete_platform" ].indexOf( channel ) != -1 ) {
+            if ( channel === "platform" ) {
                 this.load();
             }
         });
