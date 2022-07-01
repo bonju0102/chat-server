@@ -1,17 +1,21 @@
 module.exports = ( app ) => {
     const config = require( `../config/${process.env.NODE_ENV}_config.js` );
+    // const { pubRedis, subRedis } = require( "../public/redis" );
     const middleware = require( "../middleware/middleware" );
     const { createServer } = require( "http" );
     const { Server } = require( "socket.io" );
+    // const { createAdapter } = require( "@socket.io/redis-adapter" );
     const httpServer = createServer( app );
     const RecordsManager = require( "../managers/recordManager" );
     const RoomManager = require( "../managers/roomManager" );
+    const HeartBeat = require( "../public/heartBeat" );
 
     //跨域 "*" => 全通
     const io = new Server( httpServer, {
         cors: {
             origin: "*"
-        }
+        },
+        // adapter: createAdapter( pubRedis, subRedis )
     });
 
     // express can use io with req.app.get('io')
@@ -37,13 +41,21 @@ module.exports = ( app ) => {
         console.log( `Socket ${socket.id} connected.` );
         console.log( socket.decoded_token );
 
-        // records.on( "new_message", ( msg ) => {
-        //     // Send msg to specific room to all clients
-        //     io.sockets.to( msg.room_id ).emit( "msg", msg );
-        // })
+        // Heart beat
+        const heartBeat = new HeartBeat( 5 * 1000, socket )
+        socket.on( 'heart-beat', ( msg ) => {
+            if ( msg === "ping" ) {
+                socket.emit( 'heart-beat', "pong" );
+            }
+            if ( msg === "pong" ) {
+                // client is alive
+                heartBeat.reset();
+            }
+        })
+
         let room_id = socket.id;
-        let user_id = socket.decoded_token ? socket.decoded_token.uid : `guest_${new Date().getTime()}`;
-        let user_name = socket.decoded_token ? socket.decoded_token.user_name : `guest_${new Date().getTime()}`;
+        let user_id = socket.decoded_token ? socket.decoded_token.uid : `0_guest${new Date().getTime()}`;
+        let user_name = socket.decoded_token ? socket.decoded_token.user_name : `0_guest${new Date().getTime()}`;
         onlineCount++;
 
         // Notify to all clients current connection number

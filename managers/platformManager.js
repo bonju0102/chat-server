@@ -22,7 +22,7 @@ class PlatformManager {
 
     async push( platform_info ) {
         return await Platform.create( platform_info ).then( res => {
-            pubRedis.publish( "new_platform", `${res.dataValues.id}` );
+            pubRedis.publish( "platform", `${res.dataValues.id}` );
             return res
         } );
     }
@@ -42,7 +42,10 @@ class PlatformManager {
     update( platform_info, callback ) {
         Platform.findByPk( platform_info.id )
             .then( platform => platform.update( platform_info ) )
-            .then( res => callback( res ) )
+            .then( res => {
+                pubRedis.publish( "platform", `${res.dataValues.id}` );
+                callback(res)
+            })
             .catch( ( err ) => {
                 console.error( err );
                 callback( err )
@@ -52,7 +55,10 @@ class PlatformManager {
     remove( platform_id, callback ) {
         Platform.findByPk( platform_id )
             .then( platform => platform.destroy() )
-            .then( res => callback( res ) )
+            .then( res => {
+                pubRedis.publish( "platform", `${res.dataValues.id}` );
+                callback(res)
+            })
             .catch( ( err ) => {
                 console.error( err );
                 callback( err )

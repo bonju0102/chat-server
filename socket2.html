@@ -139,7 +139,7 @@
     <div id="send-box">
         <form id="send-form">
             <input type="text" name="uid" id="uid" placeholder="Name">
-            <input type="text" name="msg" id="msg" placeholder="Say something?">
+            <input type="text" name="msg" id="msg" placeholder="Say something?" onfocus="onFocus()" onblur="onBlur()">
             <input type="submit" value="send">
         </form>
     </div>
@@ -147,30 +147,29 @@
 
 <script>
     ( async () => {
-        // const token = await getToken( 'user001', "62b19bf4f70f548116e42e46" );
-
-        let socket = io( 'http://localhost:9999', {
-            auth: {
-                token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiIyX3VzZXIwMDIiLCJ1c2VyX25hbWUiOiJ1c2VyMDAyIiwicGxhdGZvcm1faWQiOiIyIiwiaWF0IjoxNjU2NDk4MTMyLCJleHAiOjE2NTY1ODQ1MzJ9.z0klt3qeNIH7RliYrH3ZUxMp7cvGJT7948l_VcJ4OGQ`
-            },
-        });
-        document.addEventListener( "DOMContentLoaded", () => {
+        document.addEventListener( "DOMContentLoaded", async () => {
+            const token = await getToken( '1_user002' );
+            let socket = io( 'http://localhost:9999', {
+                auth: {
+                    token: token
+                },
+            });
 
             let socket_id = "";
             let room_id = "";
             let room_list = [];
-            var max_record;
-            var status = document.getElementById( "status" );
-            var room_status = document.getElementById( "room" );
-            var onlineCount = document.getElementById( "onlineCount" );
-            var sendForm = document.getElementById( "send-form" );
-            var content = document.getElementById( "content" );
-            var roomList = document.getElementById( "room-list" );
-            var nameInputBox = document.getElementById( "uid" );
-            var msgInputBox = document.getElementById( "msg" );
+            let max_record;
+            let status = document.getElementById( "status" );
+            let room_status = document.getElementById( "room" );
+            let onlineCount = document.getElementById( "onlineCount" );
+            let sendForm = document.getElementById( "send-form" );
+            let content = document.getElementById( "content" );
+            let roomList = document.getElementById( "room-list" );
+            let nameInputBox = document.getElementById( "uid" );
+            let msgInputBox = document.getElementById( "msg" );
             let decoded_token = parseJwt( socket.auth.token )
-            var user_id = decoded_token ? decoded_token.uid : getCookie( "uid" );
-            var user_name = decoded_token ? decoded_token.user_name : getCookie( "user_name" );
+            let user_id = decoded_token ? decoded_token.uid : getCookie( "uid" );
+            let user_name = decoded_token ? decoded_token.user_name : getCookie( "user_name" );
 
             if ( user_name ) {
                 nameInputBox.value = user_name;
@@ -185,6 +184,18 @@
                     rmAllMsgFromBox();
                 }
             }
+
+            // Heart beat
+            const heartBeat = new HeartBeat( 5 * 1000, socket )
+            socket.on( 'heart-beat', ( msg ) => {
+                if ( msg === "ping" ) {
+                    socket.emit( 'heart-beat', "pong" );
+                }
+                if ( msg === "pong" ) {
+                    // server is alive
+                    heartBeat.reset();
+                }
+            })
 
             // Got kick from server
             socket.on( 'kick', ( uid ) => {
@@ -235,7 +246,7 @@
 
             // Load chat record to current msgBox
             socket.on( "chatRecord", ( msgs ) => {
-                for ( var i = 0; i < msgs.length; i++ ) {
+                for ( let i = 0; i < msgs.length; i++ ) {
                     ( () => {
                         addMsgToBox( msgs[ i ] );
                     })();
@@ -254,14 +265,14 @@
             sendForm.addEventListener( "submit", ( e ) => {
                 e.preventDefault();
 
-                var ok = true;
-                var formData = {};
-                var formChild = sendForm.children;
+                let ok = true;
+                let formData = {};
+                let formChild = sendForm.children;
 
-                for ( var i = 0; i < sendForm.childElementCount; i++ ) {
-                    var child = formChild[i];
+                for ( let i = 0; i < sendForm.childElementCount; i++ ) {
+                    let child = formChild[i];
                     if ( child.name !== "" ) {
-                        var val = child.value;
+                        let val = child.value;
                         if ( val === "" || !val ) {
                             ok = false;
                             child.classList.add( "error" );
@@ -420,7 +431,7 @@
             function getCookie( cname ) {
                 let name = cname + "=";
                 let ca = document.cookie.split(';');
-                for ( var i = 0; i < ca.length; i++ ) {
+                for ( let i = 0; i < ca.length; i++ ) {
                     let c = ca[ i ];
                     while ( c.charAt(0) == ' ' ) {
                         c = c.substring(1);
@@ -435,12 +446,12 @@
             // Add msg to msgBox
             function addMsgToBox( data ) {
                 if ( data.room_id == room_id ) {
-                    var msgBox = document.createElement( "div" );
+                    let msgBox = document.createElement( "div" );
                     msgBox.className = "msg";
-                    var uidBox = document.createElement( "span" );
+                    let uidBox = document.createElement( "span" );
                     uidBox.className = "uid";
-                    var uid = document.createTextNode( data.uid.split("_")[1] );
-                    var msg = document.createTextNode( data.msg );
+                    let uid = document.createTextNode( data.uid.split("_")[1] );
+                    let msg = document.createTextNode( data.msg );
 
                     uidBox.appendChild( uid );
                     // Show self msg at right
@@ -478,11 +489,12 @@
         });
 
         // Get token for websocket
-        async function getToken( uid, platform_id) {
+        async function getToken( uid ) {
             try {
                 const result = await axios.post( 'http://localhost:8888/auth/getToken', {
                     uid: uid,
-                    platform_id: platform_id
+                    user_name: uid.split('_')[1],
+                    platform_id: uid.split('_')[0]
                 }).then( ( res ) => { return res.data.data } );
                 return result
             } catch ( err ) {
@@ -492,15 +504,49 @@
         }
 
         function parseJwt (token) {
-            var base64Url = token.split('.')[1];
-            var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            let base64Url = token.split('.')[1];
+            let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+            let jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
                 return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
             }).join(''));
 
             return JSON.parse(jsonPayload);
         };
+
+        class HeartBeat {
+            constructor( timeout, socket ) {
+                this.tiktok = null;
+                this.dead = null
+                this.timeout = timeout || 60 * 1000;
+                this.socket = socket
+                this.start();
+            }
+
+            start() {
+                this.tiktok = setTimeout( () => {
+                    this.socket.emit( 'heart-beat', "ping" );
+                    // set disconnect timeout
+                    this.dead = setTimeout( () => {
+                        this.socket.close();
+                    }, this.timeout + 60 * 1000 );
+                }, this.timeout );
+            }
+
+            reset() {
+                clearTimeout( this.tiktok );
+                clearTimeout( this.dead );
+                this.start();
+            }
+        }
     })()
+
+    function onFocus() {
+        console.log( '輸入中...' );
+    }
+
+    function onBlur() {
+        console.log( '離開' );
+    }
 </script>
 </body>
 </html>

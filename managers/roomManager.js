@@ -29,7 +29,7 @@ class RoomManager {
 
     async push( room_info ) {
         return await Room.create( room_info ).then( res => {
-            pubRedis.publish( "new_room", `${res.dataValues.id}` );
+            pubRedis.publish( "room", `${res.dataValues.id}` );
             return res
         })
     }
@@ -50,7 +50,10 @@ class RoomManager {
     update( room_info, callback ) {
         Room.findByPk( room_info.id )
             .then( room => room.update( room_info ) )
-            .then( res => callback( res ) )
+            .then( res => {
+                pubRedis.publish( "room", `${res.dataValues.id}` );
+                callback(res)
+            })
             .catch( ( err ) => {
                 console.error( err );
                 callback( err )
@@ -60,7 +63,10 @@ class RoomManager {
     remove( id, callback ) {
         Room.findByPk( id )
             .then( room => room.destroy() )
-            .then( res => callback( res ) )
+            .then( res => {
+                pubRedis.publish( "room", `${res.dataValues.id}` );
+                callback(res)
+            })
             .catch( ( err ) => {
                 console.error( err );
                 callback( err )
