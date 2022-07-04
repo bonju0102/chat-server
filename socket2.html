@@ -146,7 +146,7 @@
         const SOCKET_PORT = 2222;
         const API_PORT = 1111;
         document.addEventListener( "DOMContentLoaded", async () => {
-            const token = await getToken( '1_user001' );
+            const token = await getToken( '1_user002' );
             let socket = io( `http://localhost:${SOCKET_PORT}`, {
                 auth: {
                     token: token
@@ -467,12 +467,11 @@
         // Get token for websocket
         async function getToken( uid ) {
             try {
-                const result = await axios.post( `http://localhost:${API_PORT}/auth/getToken`, {
+                return await axios.post( `http://localhost:${API_PORT}/auth/getToken`, {
                     uid: uid,
                     user_name: uid.split('_')[1],
                     platform_id: uid.split('_')[0]
                 }).then( ( res ) => { return res.data.data } );
-                return result
             } catch ( err ) {
                 console.log( err );
                 return ""

@@ -1,18 +1,23 @@
 module.exports = ( app ) => {
     const config = require( `../config/${process.env.NODE_ENV}_config.js` );
     const middleware = require( "../middleware/middleware" );
+    const { pubRedis, subRedis } = require( "../public/redis" );
     const { createServer } = require( "http" );
     const { Server } = require( "socket.io" );
+    const { createAdapter } = require( "@socket.io/redis-adapter" );
     const httpServer = createServer( app );
     const RecordsManager = require( "../managers/recordManager" );
     const RoomManager = require( "../managers/roomManager" );
     const HeartBeat = require( "../public/heartBeat" );
 
     //跨域 "*" => 全通
+    // Redis adapter was implemented with pub/sub feature of Redis
+    const redis_adapter = createAdapter( pubRedis, subRedis );
     const io = new Server( httpServer, {
         cors: {
             origin: "*"
         },
+        adapter: redis_adapter,
     });
 
     // express can use io with req.app.get('io')
@@ -103,6 +108,8 @@ module.exports = ( app ) => {
             if ( Object.keys( msg ).length < 2 ) return;
             console.log( msg );
             recordsMgr.push( msg );
+            // Send msg through adapter
+            io.to( msg.room_id ).emit( "msg", recordsMgr.cleanWord( new Array( msg ) )[0] );
         })
 
         // Get notify when client want to join specific room

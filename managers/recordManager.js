@@ -2,7 +2,7 @@ const models = require( "../public/modelPool" );
 const Message = models.Message;
 const WordFilter = require( "bad-words-chinese" );
 const wordFilter = new WordFilter();
-const { pubRedis, subRedis } = require( "../public/redis" );
+// const { pubRedis, subRedis } = require( "../public/redis" );
 
 // let instance;
 let MAX = 20;
@@ -10,7 +10,7 @@ let MAX = 20;
 class Records {
     constructor( callback ) {
         Message.sync();
-        this.onSubscribe();
+        // this.onSubscribe();
         // 載入訊息後 callback
         this.callback = callback || function ( msg ) { console.log( msg ) }
     }
@@ -18,7 +18,7 @@ class Records {
     push( msg ) {
         Message.create( msg )
             .then( res => {
-                pubRedis.publish( "new_message", JSON.stringify( this.cleanWord( new Array( msg ) )[0] ) )
+                // pubRedis.publish( "new_message", JSON.stringify( this.cleanWord( new Array( msg ) )[0] ) )
             })
     }
 
@@ -67,20 +67,20 @@ class Records {
         return msgs
     }
 
-    onSubscribe() {
-        // 更新
-        subRedis.subscribe( "new_message", ( err, msg ) => {
-            if ( err ) {
-                console.log( err.message );
-            }
-            subRedis.on( "message", ( channel, message ) => {
-                if ( channel === "new_message" ) {
-                    const msg = JSON.parse( message );
-                    this.callback( msg );
-                }
-            });
-        });
-    }
+    // onSubscribe() {
+    //     // 更新
+    //     subRedis.subscribe( "new_message", ( err, msg ) => {
+    //         if ( err ) {
+    //             console.log( err.message );
+    //         }
+    //         subRedis.on( "message", ( channel, message ) => {
+    //             if ( channel === "new_message" ) {
+    //                 const msg = JSON.parse( message );
+    //                 this.callback( msg );
+    //             }
+    //         });
+    //     });
+    // }
 
 }
 

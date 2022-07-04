@@ -467,12 +467,11 @@
         // Get token for websocket
         async function getToken( uid ) {
             try {
-                const result = await axios.post( `http://localhost:${API_PORT}/auth/getToken`, {
+                return await axios.post( `http://localhost:${API_PORT}/auth/getToken`, {
                     uid: uid,
                     user_name: uid.split('_')[1],
                     platform_id: uid.split('_')[0]
                 }).then( ( res ) => { return res.data.data } );
-                return result
             } catch ( err ) {
                 console.log( err );
                 return ""
