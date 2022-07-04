@@ -1,10 +1,8 @@
 module.exports = ( app ) => {
     const config = require( `../config/${process.env.NODE_ENV}_config.js` );
-    // const { pubRedis, subRedis } = require( "../public/redis" );
     const middleware = require( "../middleware/middleware" );
     const { createServer } = require( "http" );
     const { Server } = require( "socket.io" );
-    // const { createAdapter } = require( "@socket.io/redis-adapter" );
     const httpServer = createServer( app );
     const RecordsManager = require( "../managers/recordManager" );
     const RoomManager = require( "../managers/roomManager" );
@@ -15,7 +13,6 @@ module.exports = ( app ) => {
         cors: {
             origin: "*"
         },
-        // adapter: createAdapter( pubRedis, subRedis )
     });
 
     // express can use io with req.app.get('io')
@@ -29,15 +26,14 @@ module.exports = ( app ) => {
         io.sockets.to( msg.room_id ).emit( "msg", msg );
     });
 
+    // Get notify after room create/update/remove
     const roomMgr = new RoomManager( ( rooms ) => {
         totalRooms = roomMgr.get();
         io.emit( 'refresh-rooms', rooms );
     })
 
-    let onlineCount = 0;
-    let totalUsers = {};
     let totalRooms = roomMgr.get();
-    io.on( 'connection', ( socket ) => {
+    io.on( 'connection', async ( socket ) => {
         console.log( `Socket ${socket.id} connected.` );
         console.log( socket.decoded_token );
 
@@ -53,23 +49,28 @@ module.exports = ( app ) => {
             }
         })
 
+        // Get notify after user connect/disconnect
+        const userMgr = require( "../managers/userManager" )( socket.decoded_token.platform_id, ( users ) => {
+            // Notify to all clients current total connected socket id(user) list
+            io.emit( 'totalUsers', users );
+            // Notify to all clients current connection number
+            io.emit( 'onlineCount', userMgr.getOnlineCount() );
+        }, ( user_info ) => {
+            // Prevent same user login from different socket(instance)
+            io.emit( "new-connection", user_info);
+        }, ( socket_id ) => {
+            // Notify to all clients the socket_id is offline
+            io.emit( "offline", socket_id );
+        })
+
         let room_id = socket.id;
         let user_id = socket.decoded_token ? socket.decoded_token.uid : `0_guest${new Date().getTime()}`;
         let user_name = socket.decoded_token ? socket.decoded_token.user_name : `0_guest${new Date().getTime()}`;
-        onlineCount++;
 
-        // Notify to all clients current connection number
-        io.emit( 'onlineCount', onlineCount );
-
-        // Notify to all clients the socket id is online
-        io.emit( "new-connection", user_id, socket.id );
+        await userMgr.addUser( socket.id, socket.decoded_token );
 
         // Notify current db total room list
         socket.emit( "totalRooms", totalRooms[ socket.decoded_token.platform_id ] ? totalRooms[ socket.decoded_token.platform_id ] : [] );
-
-        // Notify current socket id total room list
-        totalUsers[ socket.id ] = user_name;
-        socket.emit( "totalUsers", totalUsers );
 
         // DEBUG USE: get current & total room list
         socket.on( "rooms", () => {
@@ -91,12 +92,10 @@ module.exports = ( app ) => {
         // Websocket disconnect
         socket.on( 'disconnect', () => {
             console.log( 'Bye socket~' );
-            delete totalUsers[ socket.id ];
+
+            userMgr.removeUser( socket.id, socket.decoded_token );
             // Update onlineCount
-            onlineCount = onlineCount < 0 ? 0 : onlineCount -= 1;
-            io.emit( 'onlineCount', onlineCount );
-            // Notify to all clients the socket id is offline
-            io.emit( 'offline', socket.id );
+            io.emit( 'onlineCount', userMgr.getOnlineCount() );
         })
 
         // Get notify when msg sent
@@ -130,9 +129,10 @@ module.exports = ( app ) => {
             // io.sockets.to( room ).emit( 'room-brodcast', `${socket.id} has join in ${room}`);
         })
 
-        // socket.on( 'room-brodcast', ( data ) => {
-        //     console.log( `room brodcast: ${data}` );
-        // })
+        socket.on( "userFocus", ( msg ) => {
+            if ( msg ) console.log( "user is focus on the screen." )
+            else console.log( "user leave on the page." )
+        })
 
         // module.exports.socket = socket;
     })

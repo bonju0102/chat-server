@@ -16,9 +16,9 @@ exports.redisConfig = {
     "password": "a168168168"
 }
 
-exports.PORT = 6666;
+exports.PORT = 1111;
 
-exports.SOCKET_PORT = 7777;
+exports.SOCKET_PORT = 2222;
 
 exports.TZ = 'Asia/Taipei';
 

@@ -124,14 +124,10 @@
 </head>
 <body>
 <div id="container">
-    <div id="status-box">Server: <span id="status">-</span> RoomManager: <span id="room" style="color:red">-</span> / <span id="onlineCount">0</span> online.</div>
+    <div id="status-box">Server: <span id="status">-</span> Room: <span id="room" style="color:red">-</span> / <span id="onlineCount">0</span> online.</div>
     <div id="chat-room">
         <div id="room-list">
             <div class="vertical-center">
-<!--                <button class="roomBtn" value="lobby">lobby</button>-->
-<!--                <button class="roomBtn" value="room A">room A</button>-->
-<!--                <button class="roomBtn" value="room B">room B</button>-->
-<!--                <button class="roomBtn" value="room C">room C</button>-->
             </div>
         </div>
         <div id="content"></div>
@@ -147,9 +143,11 @@
 
 <script>
     ( async () => {
+        const SOCKET_PORT = 9999;
+        const API_PORT = 8888;
         document.addEventListener( "DOMContentLoaded", async () => {
             const token = await getToken( '1_user001' );
-            let socket = io( 'http://localhost:9999', {
+            let socket = io( `http://localhost:${SOCKET_PORT}`, {
                 auth: {
                     token: token
                 },
@@ -157,7 +155,6 @@
 
             let socket_id = "";
             let room_id = "";
-            let room_list = [];
             let max_record;
             let status = document.getElementById( "status" );
             let room_status = document.getElementById( "room" );
@@ -175,15 +172,7 @@
                 nameInputBox.value = user_name;
             }
 
-            // Initial room button click action
-            for ( let i = 0; i < roomList.firstElementChild.childElementCount; i++ ) {
-                room_list.push( roomList.firstElementChild.children[i].value )
-                roomList.firstElementChild.children[i].onclick = function () {
-                    socket.emit( "join", roomList.firstElementChild.children[i].value );
-                    room_status.innerText = roomList.firstElementChild.children[i].innerText;
-                    rmAllMsgFromBox();
-                }
-            }
+            document.addEventListener( 'visibilitychange', checkDocumentFocus );
 
             // Heart beat
             const heartBeat = new HeartBeat( 5 * 1000, socket )
@@ -197,40 +186,28 @@
                 }
             })
 
-            // Got kick from server
+            // Got kick from server ( API used )
             socket.on( 'kick', ( uid ) => {
-                if ( uid == decoded_token.platform_id || uid == user_id ) {
+                if ( uid === decoded_token.platform_id || uid === user_id ) {
                     socket.close();
                 }
             })
 
-            // Add room button when new connection establish
-            socket.on( "new-connection", ( userId, socketId ) => {
-                if ( userId === user_id && socketId !== socket_id ) {
+            socket.on( "new-connection", ( user_info ) => {
+                if ( user_info.uid === user_id && user_info.socket_id !== socket.id ) {
                     socket.close();
-                }
-                if ( room_list.indexOf( socketId ) == -1 ) {
-                    // create new btn
-                    let newBtn = document.createElement( "button" );
-                    newBtn.className = "userBtn";
-                    newBtn.id = socketId;
-                    newBtn.value = socketId;
-                    newBtn.innerText = userId.split( "_" )[1];
-                    newBtn.onclick = function () {
-                        socket.emit( "join", socketId );
-                        room_status.innerText = userId.split( "_" )[1];
-                        rmAllMsgFromBox();
-                    }
-                    roomList.firstElementChild.appendChild( newBtn );
-                    room_list.push( socketId );
                 }
             })
 
-            // Get notify when someone offline ( remove from room_list & delete roomBtn )
+            // Get notify when someone offline ( remove from btn_list & delete userBtn )
             socket.on( "offline", ( socket_id ) => {
-                let idx = room_list.indexOf( socket_id );
-                if ( idx != -1 ) {
-                    room_list = room_list.splice( idx, 1 );
+                // current userBtn value list
+                let tmp_btn = []
+                for ( let btn of document.getElementsByClassName( "userBtn" ) ) {
+                    tmp_btn.push( btn.value );
+                }
+                let idx = tmp_btn.indexOf( socket_id );
+                if ( idx !== -1 ) {
                     document.getElementById( socket_id ).remove()
                 }
             })
@@ -239,10 +216,6 @@
             socket.on( "onJoinRoom", ( msg ) => {
                 room_id = msg;
             })
-
-            // socket.on( "room-brodcast", ( msg ) => {
-            //
-            // })
 
             // Load chat record to current msgBox
             socket.on( "chatRecord", ( msgs ) => {
@@ -347,8 +320,7 @@
                     }
                     roomList.firstElementChild.appendChild( newBtn );
 
-                    if ( rid == room_id ) {
-                        console.log( room_id)
+                    if ( rid === room_id ) {
                         max_record = r.history_limit;
                         // Remove all content
                         rmAllMsgFromBox();
@@ -367,10 +339,6 @@
 
                 for ( let room of rooms ) {
                     const rid = `${room.platform_id}_${room.room_id}`;
-                    // Add new room if not exist
-                    if ( room_list.indexOf( rid ) == -1 ) {
-                        room_list.push( rid );
-                    }
 
                     // create new btn
                     let newBtn = document.createElement( "button" );
@@ -395,23 +363,19 @@
                     tmp_btn.push( btn.value );
                 }
 
-                for ( let sid of Object.keys(users) ) {
-                    // Add new room if not exist
-                    if ( room_list.indexOf( sid ) == -1 ) {
-                        room_list.push( sid );
-                    }
+                for ( let uid of Object.keys(users) ) {
 
-                    // Add new roomBtn if not exist
-                    if ( tmp_btn.indexOf( sid ) == -1 ) {
+                    // Add new userBtn if not exist
+                    if ( tmp_btn.indexOf( users[uid].socket_id ) === -1 ) {
                         // create new btn
                         let newBtn = document.createElement( "button" );
                         newBtn.className = "userBtn";
-                        newBtn.id = sid;
-                        newBtn.value = sid;
-                        newBtn.innerText = sid == socket_id ? user_name : users[sid]
+                        newBtn.id = users[uid].socket_id;
+                        newBtn.value = users[uid].socket_id;
+                        newBtn.innerText = users[uid].socket_id === socket_id ? user_name : users[uid].user_name
                         newBtn.onclick = function () {
-                            socket.emit( "join", sid );
-                            room_status.innerText = sid == socket_id ? user_name : users[sid];
+                            socket.emit( "join", users[uid].socket_id );
+                            room_status.innerText = users[uid].socket_id === socket_id ? user_name : users[uid].user_name;
                             rmAllMsgFromBox();
                         }
                         roomList.firstElementChild.appendChild( newBtn );
@@ -445,7 +409,7 @@
 
             // Add msg to msgBox
             function addMsgToBox( data ) {
-                if ( data.room_id == room_id ) {
+                if ( data.room_id === room_id ) {
                     let msgBox = document.createElement( "div" );
                     msgBox.className = "msg";
                     let uidBox = document.createElement( "span" );
@@ -455,7 +419,7 @@
 
                     uidBox.appendChild( uid );
                     // Show self msg at right
-                    if ( data.uid == user_id ) {
+                    if ( data.uid === user_id ) {
                         msgBox.style = "text-align: right;padding: 5px 0 5px 0;"
                         uidBox.style = "padding: 5px 5px 5px 0;"
                         msgBox.appendChild( msg );
@@ -486,20 +450,32 @@
                 }
             }
 
+            // Check user is waiting on the page
+            function checkDocumentFocus() {
+                if ( document.visibilityState === 'visible' ) {
+                    console.log( "用戶等待回覆中..." )
+                    socket.emit( "userFocus", true );
+                } else {
+                    console.log( "用戶已離開頁面" )
+                    socket.emit( "userFocus", false );
+                }
+            }
+
+
         });
 
         // Get token for websocket
         async function getToken( uid ) {
             try {
-                const result = await axios.post( 'http://localhost:8888/auth/getToken', {
+                const result = await axios.post( `http://localhost:${API_PORT}/auth/getToken`, {
                     uid: uid,
                     user_name: uid.split('_')[1],
                     platform_id: uid.split('_')[0]
                 }).then( ( res ) => { return res.data.data } );
                 return result
             } catch ( err ) {
-                return ""
                 console.log( err );
+                return ""
             }
         }
 
@@ -511,11 +487,13 @@
             }).join(''));
 
             return JSON.parse(jsonPayload);
-        };
+        }
 
         class HeartBeat {
             constructor( timeout, socket ) {
+                // heart beat rate
                 this.tiktok = null;
+                // dead count down timer
                 this.dead = null
                 this.timeout = timeout || 60 * 1000;
                 this.socket = socket

@@ -21,6 +21,8 @@ module.exports = ( socket, next ) => {
             next( ERR.PLATFORM_SUSPEND );
         }
     })
+
+    // Save token info in decoded_token
     socket.decoded_token = data;
 
     next();
